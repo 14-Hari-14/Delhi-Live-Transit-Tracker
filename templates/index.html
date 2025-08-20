@@ -20,16 +20,13 @@
   <body>
     <div id="map"></div>
     <script>
-      // 1. Initialize the Leaflet map, centered on Delhi
+      // ... (map initialization code is the same) ...
       const map = L.map("map").setView([28.6139, 77.209], 11);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(map);
 
-      // This object will store our vehicle markers so we can move them
       let vehicleMarkers = {};
-
-      // 2. Connect to your running backend server
       const socket = io.connect(
         "http://" + document.domain + ":" + location.port
       );
@@ -38,25 +35,26 @@
         console.log("Successfully connected to the backend server!");
       });
 
-      // 3. This function listens for the 'vehicle_update' event from your backend
+      // --- THIS IS THE NEW DEBUGGING LINE ---
+      socket.onAny((eventName, ...args) => {
+        console.log(`DEBUG: Received an event named '${eventName}'`);
+      });
+      // ------------------------------------
+
       socket.on("vehicle_update", (data) => {
         const vehicles = data.vehicles;
         console.log(`Received update for ${vehicles.length} vehicles.`);
 
-        // Loop through each vehicle in the data from the server
         vehicles.forEach((vehicle) => {
           const vehicleId = vehicle.id;
           const position = [vehicle.lat, vehicle.lon];
 
-          // Check if we already have a marker for this vehicle
           if (vehicleMarkers[vehicleId]) {
-            // If the marker already exists, just update its position
             vehicleMarkers[vehicleId].setLatLng(position);
           } else {
-            // If it's a new vehicle, create a new marker and add it to the map
             vehicleMarkers[vehicleId] = L.marker(position)
               .addTo(map)
-              .bindPopup(`Vehicle ID: ${vehicleId}`); // Add a popup
+              .bindPopup(`Vehicle ID: ${vehicleId}`);
           }
         });
       });

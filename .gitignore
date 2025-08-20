@@ -1,1 +1,28 @@
+# Secrets - Never commit these!
 .env
+
+# Python Virtual Environment
+# This folder is large, OS-specific, and can be recreated from requirements.txt
+venv/
+*.venv
+
+# Python Bytecode and Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Database Files
+# For your development database that shouldn't be shared
+*.db
+*.sqlite3
+
+# IDE and Editor Configuration
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Operating System Files
+.DS_Store
+Thumbs.db
