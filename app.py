@@ -1,42 +1,50 @@
-from flask import Flask, render_template
-from flask_socketio import SocketIO
+# app.py
+
+from flask import Flask, jsonify, render_template
 from data_fetcher import fetch_data, parse_data
-import time
-from threading import Thread # <-- Import the Thread class
+from flask_cors import CORS
 
+# Initialize the Flask application
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
 
-def background_task():
-    """Fetches, parses, and broadcasts data in a continuous loop."""
-    print("Background task started.")
-    while True:
-        print("Fetching new data...")
-        raw_data = fetch_data()
-        
-        if raw_data:
-            vehicle_positions = parse_data(raw_data)
-            socketio.emit('vehicle_update', {'vehicles': vehicle_positions})
-            print(f"Broadcasted data for {len(vehicle_positions)} vehicles.")
-        
-        # Use a standard time.sleep() now
-        time.sleep(15)
+# Enable Cross-Origin Resource Sharing (CORS) to allow your frontend 
+# to fetch data from this backend, even if they run on different ports.
+CORS(app)
+
 
 @app.route('/')
 def index():
+    """
+    This route will serve the main HTML page for the map.
+    We will create the 'index.html' file in the next step.
+    """
     return render_template('index.html')
 
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
+
+@app.route('/api/vehicle_positions')
+def get_vehicle_positions():
+    """
+    This is the API endpoint that your frontend will call.
+    It fetches, parses, and returns the live vehicle data.
+    """
+    print("Fetching new data from the GTFS API...")
+    
+    # 1. Fetch raw data using your existing function
+    raw_data = fetch_data()
+    
+    if raw_data:
+        # 2. Parse the data if fetching was successful
+        vehicle_positions = parse_data(raw_data)
+        print(f"Successfully parsed {len(vehicle_positions)} vehicles.")
+        
+        # 3. Return the data as a JSON response
+        return jsonify(vehicle_positions)
+    else:
+        # If fetching fails, return an error message
+        print("Failed to fetch data from the API.")
+        return jsonify({"error": "Failed to fetch data from the API"}), 500
 
 if __name__ == '__main__':
-    print("Starting background thread...")
-    # --- This is the new, more reliable method ---
-    task = Thread(target=background_task)
-    task.daemon = True # Allows main program to exit even if thread is running
-    task.start()
-    # -----------------------------------------
-    
-    print("Starting server...")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    # Run the app in debug mode, which provides helpful error messages
+    # and automatically reloads the server when you make changes.
+    app.run(debug=True, port=5001)
