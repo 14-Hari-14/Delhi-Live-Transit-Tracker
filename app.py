@@ -1,50 +1,42 @@
 # app.py
 
 from flask import Flask, jsonify, render_template
-from data_fetcher import fetch_data, parse_data
 from flask_cors import CORS
+import redis
+import json
 
-# Initialize the Flask application
 app = Flask(__name__)
-
-# Enable Cross-Origin Resource Sharing (CORS) to allow your frontend 
-# to fetch data from this backend, even if they run on different ports.
 CORS(app)
+
+# Connect to your local Redis server
+r = redis.Redis(decode_responses=True)
 
 
 @app.route('/')
 def index():
-    """
-    This route will serve the main HTML page for the map.
-    We will create the 'index.html' file in the next step.
-    """
     return render_template('index.html')
 
 
 @app.route('/api/vehicle_positions')
 def get_vehicle_positions():
     """
-    This is the API endpoint that your frontend will call.
-    It fetches, parses, and returns the live vehicle data.
+    This endpoint now reads data from the Redis cache.
+    It no longer calls fetch_data() or parse_data().
     """
-    print("Fetching new data from the GTFS API...")
+    print("API request received, fetching from Redis cache...")
     
-    # 1. Fetch raw data using your existing function
-    raw_data = fetch_data()
+    # 1. Get the JSON string from Redis using our key
+    json_data = r.get('latest_vehicles')
     
-    if raw_data:
-        # 2. Parse the data if fetching was successful
-        vehicle_positions = parse_data(raw_data)
-        print(f"Successfully parsed {len(vehicle_positions)} vehicles.")
+    if json_data:
+        # 2. If data exists, parse the JSON string back into a Python object
+        vehicle_positions = json.loads(json_data)
         
-        # 3. Return the data as a JSON response
+        # 3. Return the data using jsonify
         return jsonify(vehicle_positions)
     else:
-        # If fetching fails, return an error message
-        print("Failed to fetch data from the API.")
-        return jsonify({"error": "Failed to fetch data from the API"}), 500
+        # This will happen if the worker hasn't run yet or there was an error
+        return jsonify({"error": "No data available in cache. Please wait."}), 404
 
 if __name__ == '__main__':
-    # Run the app in debug mode, which provides helpful error messages
-    # and automatically reloads the server when you make changes.
     app.run(debug=True, port=5001)

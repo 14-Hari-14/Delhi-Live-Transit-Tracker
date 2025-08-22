@@ -23,6 +23,8 @@
 
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster-src.js"></script>
 
+    <script src="https://unpkg.com/leaflet.marker.slideto@0.2.0/Leaflet.Marker.SlideTo.js"></script>
+
     <style>
       html,
       body,
@@ -51,8 +53,12 @@
         popupAnchor: [0, -40],
       });
 
-      // CHANGED: Use a MarkerClusterGroup instead of a LayerGroup
-      let markers = L.markerClusterGroup();
+      // Use a MarkerClusterGroup for clean display
+      let markerGroup = L.markerClusterGroup();
+      map.addLayer(markerGroup);
+
+      // NEW: Use an object to store references to our markers by their ID
+      let busMarkers = {};
 
       async function updateBusLocations() {
         try {
@@ -61,23 +67,40 @@
           );
           const vehicles = await response.json();
 
-          // Clear existing markers from the cluster group
-          markers.clearLayers();
-
           console.log(`Updating map with ${vehicles.length} buses...`);
 
-          vehicles.forEach((vehicle) => {
-            const marker = L.marker([vehicle.lat, vehicle.lon], {
-              icon: busIcon,
-            });
-            marker.bindPopup(`<b>Bus ID:</b> ${vehicle.id}`);
+          // Get a list of vehicle IDs from the latest API fetch
+          const receivedVehicleIds = new Set(vehicles.map((v) => v.id));
 
-            // Add the marker to the cluster group instead of adding it directly to the map
-            markers.addLayer(marker);
+          vehicles.forEach((vehicle) => {
+            const vehicleId = vehicle.id;
+            const newPosition = [vehicle.lat, vehicle.lon];
+
+            // Check if this bus marker already exists
+            if (busMarkers[vehicleId]) {
+              // If it exists, slide it to the new position
+              busMarkers[vehicleId].slideTo(newPosition, {
+                duration: 9000, // Animate over 9 seconds
+                keepAtCenter: false,
+              });
+            } else {
+              // If it's a new bus, create a new marker
+              const newMarker = L.marker(newPosition, { icon: busIcon });
+              newMarker.bindPopup(`<b>Bus ID:</b> ${vehicleId}`);
+
+              // Add it to our cluster group and our reference object
+              markerGroup.addLayer(newMarker);
+              busMarkers[vehicleId] = newMarker;
+            }
           });
 
-          // Add the entire cluster group to the map
-          map.addLayer(markers);
+          // Clean up old markers: Remove markers for buses that are no longer in the API feed
+          for (const vehicleId in busMarkers) {
+            if (!receivedVehicleIds.has(vehicleId)) {
+              markerGroup.removeLayer(busMarkers[vehicleId]);
+              delete busMarkers[vehicleId];
+            }
+          }
         } catch (error) {
           console.error("Error fetching or updating bus locations:", error);
         }

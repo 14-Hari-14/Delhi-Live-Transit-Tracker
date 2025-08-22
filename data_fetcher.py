@@ -61,5 +61,5 @@ if __name__ == "__main__":
         vehicle_positions = parse_data(raw_data)
         print(f"Successfully parsed {len(vehicle_positions)} vehicles.")
         # Print the first 5 vehicles to check
-        for vehicle in vehicle_positions[:5]:
+        for vehicle in vehicle_positions[:20]:
             print(vehicle)
